@@ -66,10 +66,10 @@ def recommend(skills):
 
 
 
-st.title('HireMe')
+# st.title('HireMe')
 #add picture
-# image = Image.open('hireme_logo.png')
-# st.image(image)
+image = Image.open('hireme_logo_cropped.png')
+st.image(image)
 
 uploaded_file = st.file_uploader("Drop your resume here", type=['pdf'])
 new_data = None
