@@ -1,11 +1,18 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image
 import time
 from io import StringIO
+# import io,random
 from pyresparser import ResumeParser
 import re
 import pickle
 from ftfy import fix_text
+from pdfminer3.layout import LAParams, LTTextBox
+from pdfminer3.pdfpage import PDFPage
+from pdfminer3.pdfinterp import PDFResourceManager
+from pdfminer3.pdfinterp import PDFPageInterpreter
+from pdfminer3.converter import TextConverter
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
 import matplotlib.pyplot as plt
@@ -13,6 +20,24 @@ import pandas as pd
 import numpy as np
 
 df_new = movie_list = pickle.load(open("df_new.pkl", "rb"))
+
+def pdf_reader(file):
+    resource_manager = PDFResourceManager()
+    fake_file_handle = StringIO()
+    converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
+    page_interpreter = PDFPageInterpreter(resource_manager, converter)
+    with open(file, 'rb') as fh:
+        for page in PDFPage.get_pages(fh,
+                                      caching=True,
+                                      check_extractable=True):
+            page_interpreter.process_page(page)
+            print(page)
+        text = fake_file_handle.getvalue()
+
+    # close open handles
+    converter.close()
+    fake_file_handle.close()
+    return text
 
 def ngrams(string, n=3):
     string = fix_text(string) # fix text
@@ -68,11 +93,13 @@ def recommend(skills):
     df_new['match']=matches['Match confidence']
     df1=df_new.sort_values('match')
     ans1=df1.sort_values(by='match', ascending=False)
-    ans=df1.sort_values(by='match', ascending=False).head(5)
+    ans=df1.sort_values(by='match', ascending=False).head(6)
     
-    st.subheader('Job Recommendations')
-    st.write(":heavy_minus_sign:" * 32)
+    # st.caption('Some jobs recommended for you are:')
+    # st.write(":heavy_minus_sign:" * 32)
+    st.write(" ")
     pie_chart(ans1.head(10))
+    st.markdown("<br><br>", unsafe_allow_html=True)
     st.write(ans[['Company Name','Job Title','Location','Skills Required']])   
     
     #----------
@@ -84,7 +111,7 @@ def recommend(skills):
 image = Image.open('hireme_logo_cropped.png')
 st.image(image)
 # st.caption('HireMe')
-st.caption('Welcome to HireMe! Upload your resume and get personalized feedback and job recommendations based on industry standards and best practices. Our AI technology matches your skills and experience with real-time job openings, so you can find your dream job. ')
+st.caption("Welcome to HireME, \n\n*the revolutionary job search platform that helps you find your dream job without the hassle of endlessly browsing through multiple job websites.* ")
 
 # uploaded_file = None
 # if st.button('Get Started'): 
@@ -109,16 +136,31 @@ if uploaded_file is not None:
         new_data = [' '.join(new_data)]
         new_data = [s.lower() for s in new_data]
         new_data = [''.join(c for c in s if c.isalnum() or c==' ') for s in new_data]
+        resume_text = pdf_reader(save_path)
+
     
         print(new_data)
+        
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        try:
+            st.header('Hello, '+data['name']+'!')
+        except:
+            st.header('Hello!')
+        components.html("""<hr style="height:10px;border:none;color:#333;background: linear-gradient(to right, purple, blue);margin-bottom: 0;" /> """)
         recommend(new_data)
-        if st.button('Analyse Resume',type="primary"):
-            st.write('Analyzing your resume...')
-            time.sleep(1.5)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button('ReUpload',type="primary"):
+            st.experimental_rerun()
+            # st.write('Analyzing your resume...')
+            # time.sleep(1)
             st.success('Resume analysis complete!', icon="✅")
+            st.write(resume_text)
     else:
         #write error message
         st.error('No information found in your resume', icon="🚨")
+else:
+    time.sleep(0.5)
+    st.warning('*Attention!* If you don\'t have a resume, head over to the "Create Resume" section of our website.', icon="⚠️")
 
 
 
