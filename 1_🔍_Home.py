@@ -1,11 +1,9 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import urllib.request
-# from bokeh.plotting import figure
 from PIL import Image
 import time
 from io import StringIO
-# import io,random
 from pyresparser import ResumeParser
 import re
 import pickle
@@ -109,7 +107,7 @@ def recommend(skills):
     with tab1:
         st.dataframe(ans[['Company Name','Job Title','Location','Skills Required']])   
     with tab2:
-        for i in range(4):
+        for i in range(5):
             with st.container():
                 cola, colb = st.columns(2)
                 with cola:
@@ -191,12 +189,13 @@ if uploaded_file is not None:
         components.html("""<hr style="height:10px;border:none;color:#333;background: linear-gradient(to right, purple, blue);margin-bottom: 0;" /> """)
         recommend(new_data)
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button('ReUpload',type="primary"):
-            st.experimental_rerun()
-            # st.write('Analyzing your resume...')
-            # time.sleep(1)
-            st.success('Resume analysis complete!', icon="✅")
-            st.write(resume_text)
+        # if st.button('ReUpload',type="primary"):
+        #     st.experimental_rerun()
+        #     # st.write('Analyzing your resume...')
+        #     # time.sleep(1)
+        #     st.success('Resume analysis complete!', icon="✅")
+        #     st.write(resume_text)
+        
     else:
         #write error message
         st.error('No information found in your resume', icon="🚨")
@@ -206,7 +205,24 @@ else:
 
 
 
+button = """
+<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="dakshiegoeq" data-color="#FFDD00" data-emoji=""  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
+"""
 
+components.html(button, height=70, width=220)
+
+st.markdown(
+"""
+<style>
+iframe[width="220"] {
+position: fixed;
+bottom: 60px;
+right: 40px;
+}
+</style>
+""",
+unsafe_allow_html=True,
+)
 
 # st.write('Your skills are: ', new_data)
     
