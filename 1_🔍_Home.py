@@ -1,5 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import urllib.request
+# from bokeh.plotting import figure
 from PIL import Image
 import time
 from io import StringIO
@@ -21,23 +23,6 @@ import numpy as np
 
 df_new = movie_list = pickle.load(open("df_new.pkl", "rb"))
 
-def pdf_reader(file):
-    resource_manager = PDFResourceManager()
-    fake_file_handle = StringIO()
-    converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
-    page_interpreter = PDFPageInterpreter(resource_manager, converter)
-    with open(file, 'rb') as fh:
-        for page in PDFPage.get_pages(fh,
-                                      caching=True,
-                                      check_extractable=True):
-            page_interpreter.process_page(page)
-            print(page)
-        text = fake_file_handle.getvalue()
-
-    # close open handles
-    converter.close()
-    fake_file_handle.close()
-    return text
 
 def ngrams(string, n=3):
     string = fix_text(string) # fix text
@@ -56,21 +41,47 @@ def ngrams(string, n=3):
     ngrams = zip(*[string[i:] for i in range(n)])
     return [''.join(ngram) for ngram in ngrams]
 
-def pie_chart(ans):
-    # Pie chart, where the slices will be ordered and plotted counter-clockwise:
-    labels = ans['Company Name']+'\n('+ans['Job Title']+')'
-    sizes = ans['match']
-    # explode = (0, 0.1, 0, 0)  # only "explode" the 2nd slice (i.e. 'Hogs')
+# def bubble_chart(ans):
+#     fig, ax = plt.subplots()
+#     ax.scatter(ans.index, ans['match'], s=ans['match']*500, c=ans['match'], cmap='YlGnBu', alpha=0.7)
 
-    fig1, ax1 = plt.subplots()
-    ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
-             startangle=90, textprops={'color': "w"})
-    ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-    fig1.patch.set_facecolor('none')
-    st.pyplot(fig1)
+#     # Add labels to the bubbles
+#     for i, row in ans.iterrows():
+#         ax.text(i, row['match'], row['Company Name'], ha='center', va='center')
+
+#     # Customize the chart
+#     ax.set_xlabel('Company', color='white')
+#     ax.set_ylabel('Score', color='white')
+#     ax.set_title('Score Comparison with Top 5 comapnies', color='white')
+#     ax.set_xticks(ans.index)
+#     ax.set_xticklabels(ans['Company Name'], color='white')
+#     ax.tick_params(axis='both', colors='white')
+#     ax.spines['bottom'].set_color('white')
+#     ax.spines['left'].set_color('white')
+
+#     fig.patch.set_alpha(0.0)
+#     plt.rcParams['text.color'] = 'white'
+#     ax.patch.set_facecolor('none')
+#     st.pyplot(fig)
+
+
+# def pie_chart(ans):
+#     # Pie chart, where the slices will be ordered and plotted counter-clockwise:
+#     labels = ans['Company Name']+'\n('+ans['Job Title']+')'
+#     sizes = ans['match']
+#     # explode = (0, 0.1, 0, 0)  # only "explode" the 2nd slice (i.e. 'Hogs')
+
+#     fig1, ax1 = plt.subplots()
+#     ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
+#              startangle=90, textprops={'color': "w"})
+#     ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+#     fig1.patch.set_facecolor('none')
+#     st.pyplot(fig1)
 
 
 def recommend(skills):
+
+    print(df_new.head())
     vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams, lowercase=False)
     tfidf = vectorizer.fit_transform(skills)
     nbrs = NearestNeighbors(n_neighbors=1, n_jobs=-1).fit(tfidf)
@@ -93,15 +104,46 @@ def recommend(skills):
     df_new['match']=matches['Match confidence']
     df1=df_new.sort_values('match')
     ans1=df1.sort_values(by='match', ascending=False)
-    ans=df1.sort_values(by='match', ascending=False).head(6)
-    
-    # st.caption('Some jobs recommended for you are:')
-    # st.write(":heavy_minus_sign:" * 32)
-    st.write(" ")
-    pie_chart(ans1.head(10))
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.write(ans[['Company Name','Job Title','Location','Skills Required']])   
-    
+    ans=df1.sort_values(by='match', ascending=False).head(10)
+    tab2, tab1 = st.tabs(["Details", "List"])
+    with tab1:
+        st.dataframe(ans[['Company Name','Job Title','Location','Skills Required']])   
+    with tab2:
+        for i in range(3):
+            with st.container():
+                cola, colb = st.columns(2)
+                with cola:
+                    # st.header(ans.head()['Company Name'].values[0])
+                    url = ans.head()['Logo'].values[i]
+                    filename = 'logo.png'
+                    urllib.request.urlretrieve(url, filename)
+
+            # Open the downloaded image and display it using st.image()
+                    image = Image.open(filename)
+                    
+                    st.subheader(ans.head()['Job Title'].values[i])
+                    st.image(image)
+                    
+                    try:
+                        # ans.head()['Skills Required'].values[0].replace("  " , " ")
+                        st.button(ans.head()['Skills Required'].values[i], disabled=True)
+                    except:
+                        pass
+                    
+                with colb:
+                    # st.write("*About*")
+                    st.header(ans.head()['Company Name'].values[i])
+                    st.write(ans.head()['About Company'].values[i])
+                    try:
+                        st.button(ans.head()['Location'].values[i], disabled=True, type="primary")
+                    except:
+                        pass
+                    st.markdown("<br><br>", unsafe_allow_html=True)
+            # st.button(ans.head()['Location'].values[0], disabled=True)
+
+    # st.write(df_new.columns)
+    # st.dataframe(ans[['Company Name','Job Title','Location','Skills Required']])   
+
     #----------
 
 
@@ -124,7 +166,7 @@ if uploaded_file is not None:
     st.spinner(text='Uploading your resume...')
     # time.sleep(1.5)
     
-    save_path = './uploaded_resume'+uploaded_file.name
+    save_path = './uploaded_resume/'+uploaded_file.name
     with open(save_path, 'wb') as f:
         f.write(uploaded_file.getbuffer())
     
@@ -136,7 +178,7 @@ if uploaded_file is not None:
         new_data = [' '.join(new_data)]
         new_data = [s.lower() for s in new_data]
         new_data = [''.join(c for c in s if c.isalnum() or c==' ') for s in new_data]
-        resume_text = pdf_reader(save_path)
+        # resume_text = pdf_reader(save_path)
 
     
         print(new_data)
