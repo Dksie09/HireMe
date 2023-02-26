@@ -1,0 +1,7 @@
+1. Instead of pyresparser, use pdf reader and extract keywords
+2. Lowercase skills :)
+3. Read more about tfid - optimize/ other better method
+4. How do I check accuracy?
+5. Make it real-time
+6. strippend?
+7.Other website data
