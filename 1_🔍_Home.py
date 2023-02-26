@@ -109,7 +109,7 @@ def recommend(skills):
     with tab1:
         st.dataframe(ans[['Company Name','Job Title','Location','Skills Required']])   
     with tab2:
-        for i in range(3):
+        for i in range(4):
             with st.container():
                 cola, colb = st.columns(2)
                 with cola:
@@ -133,7 +133,7 @@ def recommend(skills):
                 with colb:
                     # st.write("*About*")
                     st.header(ans.head()['Company Name'].values[i])
-                    st.write(ans.head()['About Company'].values[i])
+                    st.write(ans.head()['About Company'].values[i].split('\n')[0])
                     try:
                         st.button(ans.head()['Location'].values[i], disabled=True, type="primary")
                     except:
