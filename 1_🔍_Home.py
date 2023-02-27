@@ -13,7 +13,11 @@ from pdfminer3.pdfpage import PDFPage
 from pdfminer3.pdfinterp import PDFResourceManager
 from pdfminer3.pdfinterp import PDFPageInterpreter
 from pdfminer3.converter import TextConverter
+import string
+from nltk.corpus import stopwords
+from rapidfuzz import fuzz
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -21,6 +25,66 @@ import numpy as np
 
 df_new = movie_list = pickle.load(open("df_new.pkl", "rb"))
 
+#to get pdf text
+def pdf_reader(file):
+    resource_manager = PDFResourceManager()
+    fake_file_handle = StringIO()
+    converter = TextConverter(resource_manager, fake_file_handle, laparams=LAParams())
+    page_interpreter = PDFPageInterpreter(resource_manager, converter)
+    with open(file, 'rb') as fh:
+        for page in PDFPage.get_pages(fh,
+                                      caching=True,
+                                      check_extractable=True):
+            page_interpreter.process_page(page)
+            print(page)
+        text = fake_file_handle.getvalue()
+
+    # close open handles
+    converter.close()
+    fake_file_handle.close()
+    return text
+
+#procceed resume text
+def remove_html(text):
+    html_tags = re.compile('<.*?>')
+    return re.sub(html_tags, '', text)
+def remove_url(text):
+    url = re.compile(r'https?://\S+|www\.\S+')
+    #remove gmail id
+    text = re.sub(r'[\w\.-]+@[\w\.-]+', '', text)
+    return re.sub(url, '', text)
+def convert_to_pp(text):
+    text = text.replace('+', 'p')
+    return text
+def remove_punct(text):
+    table=str.maketrans('','',string.punctuation)
+    return text.translate(table)
+def remove_n(text):
+    n = re.compile(r'\n')
+    return re.sub(n, ' ', text)
+def remove_extra_space(text):
+    return re.sub(' +', ' ', text)
+def remove_numbers(text):
+    number = re.compile(r'\d+')
+    return re.sub(number, '', text)
+def remove_words_starting_with_prefix(text, prefix):
+    words = text.split()
+    filtered_words = [word for word in words if not word.startswith(prefix)]
+    return ' '.join(filtered_words)
+def remove_bullet_points(text):
+    text = text.replace('●', '')
+    text = text.replace('○', '')
+    text = text.replace('•', '')
+    return text
+def remove_dash(text):
+    text = text.replace('-', '')
+    return text
+def remove_stopwords(text):
+    new_text=[]
+    for word in text.split():
+        if word not in stopwords.words('english'):
+            new_text.append(word)
+    return ' '.join(new_text)
 
 def ngrams(string, n=3):
     string = fix_text(string) # fix text
@@ -39,108 +103,152 @@ def ngrams(string, n=3):
     ngrams = zip(*[string[i:] for i in range(n)])
     return [''.join(ngram) for ngram in ngrams]
 
-# def bubble_chart(ans):
-#     fig, ax = plt.subplots()
-#     ax.scatter(ans.index, ans['match'], s=ans['match']*500, c=ans['match'], cmap='YlGnBu', alpha=0.7)
 
-#     # Add labels to the bubbles
-#     for i, row in ans.iterrows():
-#         ax.text(i, row['match'], row['Company Name'], ha='center', va='center')
-
-#     # Customize the chart
-#     ax.set_xlabel('Company', color='white')
-#     ax.set_ylabel('Score', color='white')
-#     ax.set_title('Score Comparison with Top 5 comapnies', color='white')
-#     ax.set_xticks(ans.index)
-#     ax.set_xticklabels(ans['Company Name'], color='white')
-#     ax.tick_params(axis='both', colors='white')
-#     ax.spines['bottom'].set_color('white')
-#     ax.spines['left'].set_color('white')
-
-#     fig.patch.set_alpha(0.0)
-#     plt.rcParams['text.color'] = 'white'
-#     ax.patch.set_facecolor('none')
-#     st.pyplot(fig)
-
-
-# def pie_chart(ans):
-#     # Pie chart, where the slices will be ordered and plotted counter-clockwise:
-#     labels = ans['Company Name']+'\n('+ans['Job Title']+')'
-#     sizes = ans['match']
-#     # explode = (0, 0.1, 0, 0)  # only "explode" the 2nd slice (i.e. 'Hogs')
-
-#     fig1, ax1 = plt.subplots()
-#     ax1.pie(sizes, labels=labels, autopct='%1.1f%%',
-#              startangle=90, textprops={'color': "w"})
-#     ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-#     fig1.patch.set_facecolor('none')
-#     st.pyplot(fig1)
-
-
-def recommend(skills):
-
-    print(df_new.head())
-    vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams, lowercase=False)
-    tfidf = vectorizer.fit_transform(skills)
-    nbrs = NearestNeighbors(n_neighbors=1, n_jobs=-1).fit(tfidf)
-    test = (df_new['Tags'].values.astype('U'))
-    def getNearestN(query):
-        queryTFIDF_ = vectorizer.transform(query)
-        distances, indices = nbrs.kneighbors(queryTFIDF_)
-        return distances, indices
-    
-    distances, indices = getNearestN(test)
-    test = list(test) 
-    matches = []
-    for i,j in enumerate(indices):
-        dist=round(distances[i][0],2)
-    
-        temp = [dist]
-        matches.append(temp)
-    
-    matches = pd.DataFrame(matches, columns=['Match confidence'])
-    df_new['match']=matches['Match confidence']
-    df1=df_new.sort_values('match')
-    ans1=df1.sort_values(by='match', ascending=False)
-    ans=df1.sort_values(by='match', ascending=False).head(10)
+def recommend3(skills, df_new):
+    df_new = df_new.reset_index(drop=True)
+    score = []
+    count=0
+    # st.write(df_new['Tags'][1])
+    for i in range(len(df_new)):
+        # word_count=0
+        for j in skills.split():
+            for k in df_new['Tags'][i].split():
+                # word_count+=1
+                # st.write(k)
+                if j==k:
+                    count=count+1
+                    break
+        score.append(count)
+        count=0
+    # st.write(score)
+    max_score = max(score)
+    if max_score > 0:
+        score = [round((s/max_score)*10, 2) for s in score]
+    else:
+        score = [0] * len(df_new)
+    df_new["Score"] = score
+    ans = df_new.sort_values(by=['Score'], ascending=False)
+    # st.write(ans.head(10))
     tab2, tab1 = st.tabs(["Details", "List"])
     with tab1:
-        st.dataframe(ans[['Company Name','Job Title','Location','Skills Required']])   
+        st.dataframe(ans[['Company Name','Job Title','Location','Skills Required','Score']].head(10))   
     with tab2:
-        for i in range(5):
+        for i in range(6):
             with st.container():
                 cola, colb = st.columns(2)
                 with cola:
                     # st.header(ans.head()['Company Name'].values[0])
-                    url = ans.head()['Logo'].values[i]
+                    url = ans['Logo'].values[i]
                     filename = 'logo.png'
                     urllib.request.urlretrieve(url, filename)
 
             # Open the downloaded image and display it using st.image()
                     image = Image.open(filename)
                     
-                    st.subheader(ans.head()['Job Title'].values[i])
+                    st.subheader(ans['Job Title'].values[i])
                     st.image(image)
                     
                     try:
                         # ans.head()['Skills Required'].values[0].replace("  " , " ")
-                        st.button(ans.head()['Skills Required'].values[i], disabled=True)
+                        st.button(ans['Skills Required'].values[i], disabled=True)
                     except:
                         pass
                     
                 with colb:
                     # st.write("*About*")
-                    st.header(ans.head()['Company Name'].values[i])
-                    st.write(ans.head()['About Company'].values[i].split('\n')[0])
+                    st.header(ans['Company Name'].values[i])
+                    st.write(ans['About Company'].values[i].split('\n')[0])
                     try:
-                        st.button(ans.head()['Location'].values[i], disabled=True, type="primary")
+                        st.button(ans['Location'].values[i])
                     except:
                         pass
                     st.markdown("<br><br>", unsafe_allow_html=True)
-            # st.button(ans.head()['Location'].values[0], disabled=True)
 
-    # st.write(df_new.columns)
-    # st.dataframe(ans[['Company Name','Job Title','Location','Skills Required']])   
+# def recommend2(skills, df_new):
+#     # df_new['match'] = df_new['Tags'].apply(lambda x: fuzz.token_set_ratio(x, skills))
+
+#     # # Sort the DataFrame in descending order with respect to the 'match' column
+#     # df_new = df_new.sort_values(by='match',
+#     #  ascending=False)
+
+#     # # Print the resulting DataFrame
+#     # st.write(df_new.head(10))
+#     # Compute the cosine similarity between the 'tags' column and the user input
+#     tfidf = TfidfVectorizer()
+#     corpus = df_new['Tags'].tolist() + [skills]
+#     tfidf_matrix = tfidf.fit_transform(corpus)
+#     cosine_similarities = cosine_similarity(tfidf_matrix[:-1], tfidf_matrix[-1])
+
+#     # Add the 'match' column to the DataFrame
+#     df_new['match'] = cosine_similarities
+
+#     # Sort the DataFrame in descending order with respect to the 'match' column
+#     df = df_new.sort_values(by='match', ascending=False)
+#     st.write(df.head(10))
+
+# def recommend(skills):
+#     st.write("Skills: ", skills)
+#     # st.write(df_new['Tags'][0])
+#     # print(df_new.head())
+#     vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams, lowercase=False)
+#     tfidf = vectorizer.fit_transform(skills)
+#     nbrs = NearestNeighbors(n_neighbors=1, n_jobs=-1).fit(tfidf)
+#     test = (df_new['Tags'].values.astype('U'))
+#     def getNearestN(query):
+#         queryTFIDF_ = vectorizer.transform(query)
+#         distances, indices = nbrs.kneighbors(queryTFIDF_)
+#         return distances, indices
+    
+#     distances, indices = getNearestN(test)
+#     test = list(test) 
+#     matches = []
+#     for i,j in enumerate(indices):
+#         dist=round(distances[i][0],2)
+    
+#         temp = [dist]
+#         matches.append(temp)
+    
+#     matches = pd.DataFrame(matches, columns=['Match confidence'])
+#     df_new['match']=matches['Match confidence']
+#     df1=df_new.sort_values('match')
+#     ans1=df1.sort_values(by='match', ascending=False)
+#     ans=df1.sort_values(by='match', ascending=False).head(10)
+#     st.write(ans.head(10))
+#     tab2, tab1 = st.tabs(["Details", "List"])
+#     with tab1:
+#         st.dataframe(ans[['Company Name','Job Title','Location','Skills Required','match']])   
+#     with tab2:
+#         for i in range(5):
+#             with st.container():
+#                 cola, colb = st.columns(2)
+#                 with cola:
+#                     # st.header(ans.head()['Company Name'].values[0])
+#                     url = ans.head()['Logo'].values[i]
+#                     filename = 'logo.png'
+#                     urllib.request.urlretrieve(url, filename)
+
+#             # Open the downloaded image and display it using st.image()
+#                     image = Image.open(filename)
+                    
+#                     st.subheader(ans.head()['Job Title'].values[i])
+#                     st.image(image)
+                    
+#                     try:
+#                         # ans.head()['Skills Required'].values[0].replace("  " , " ")
+#                         st.button(ans.head()['Skills Required'].values[i], disabled=True)
+#                     except:
+#                         pass
+                    
+#                 with colb:
+#                     # st.write("*About*")
+#                     st.header(ans.head()['Company Name'].values[i])
+#                     st.write(ans.head()['About Company'].values[i].split('\n')[0])
+#                     try:
+#                         st.button(ans.head()['Location'].values[i], disabled=True, type="primary")
+#                     except:
+#                         pass
+#                     st.markdown("<br><br>", unsafe_allow_html=True)
+   
 
     #----------
 
@@ -167,34 +275,47 @@ if uploaded_file is not None:
     save_path = './uploaded_resume/'+uploaded_file.name
     with open(save_path, 'wb') as f:
         f.write(uploaded_file.getbuffer())
-    
-    data = ResumeParser(save_path).get_extracted_data()
-    if data['skills']:
+
+    resume_text = pdf_reader(save_path)
+    if resume_text:
         st.success('Successfully uploaded resume', icon="✅")
-        time.sleep(1)
-        new_data = data['skills']
-        new_data = [' '.join(new_data)]
-        new_data = [s.lower() for s in new_data]
-        new_data = [''.join(c for c in s if c.isalnum() or c==' ') for s in new_data]
+        # st.spinner(text='Analysing your resume...')
+        resume_text = resume_text.lower()
+        resume_text = remove_html(resume_text)
+        resume_text = remove_url(resume_text)
+        resume_text = convert_to_pp(resume_text)
+        resume_text = remove_punct(resume_text)
+        resume_text = remove_n(resume_text)
+        resume_text = remove_extra_space(resume_text)
+        resume_text = remove_numbers(resume_text)
+        resume_text = remove_words_starting_with_prefix(resume_text, '\\')
+        resume_text = remove_bullet_points(resume_text)
+        resume_text = remove_dash(resume_text)
+        resume_text = remove_stopwords(resume_text)
+        data = ResumeParser(save_path).get_extracted_data()
+    # if data['skills']:
+    #     st.success('Successfully uploaded resume', icon="✅")
+    #     time.sleep(1)
+    #     new_data = data['skills']
+    #     new_data = [' '.join(new_data)]
+    #     new_data = [s.lower() for s in new_data]
+    #     new_data = [''.join(c for c in s if c.isalnum() or c==' ') for s in new_data]
         # resume_text = pdf_reader(save_path)
 
     
-        print(new_data)
-        
+        print(resume_text)
+        # resume_text = [resume_text]
         st.markdown("<br><br>", unsafe_allow_html=True)
         try:
             st.header('Hello, '+data['name']+'!')
         except:
             st.header('Hello!')
         components.html("""<hr style="height:10px;border:none;color:#333;background: linear-gradient(to right, purple, blue);margin-bottom: 0;" /> """)
-        recommend(new_data)
-        st.markdown("<br>", unsafe_allow_html=True)
-        # if st.button('ReUpload',type="primary"):
-        #     st.experimental_rerun()
-        #     # st.write('Analyzing your resume...')
-        #     # time.sleep(1)
-        #     st.success('Resume analysis complete!', icon="✅")
-        #     st.write(resume_text)
+        with st.spinner(text='Fetching jobs for you...'):
+            # st.write(df_new.columns)
+            recommend3(resume_text, df_new)
+            # st.write(resume_text)
+            st.markdown("<br>", unsafe_allow_html=True)
         
     else:
         #write error message
