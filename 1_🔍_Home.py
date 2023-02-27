@@ -15,11 +15,11 @@ from pdfminer3.pdfinterp import PDFPageInterpreter
 from pdfminer3.converter import TextConverter
 import string
 from nltk.corpus import stopwords
-from rapidfuzz import fuzz
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.neighbors import NearestNeighbors
-import matplotlib.pyplot as plt
+# from rapidfuzz import fuzz
+# from sklearn.feature_extraction.text import TfidfVectorizer
+# from sklearn.metrics.pairwise import cosine_similarity
+# from sklearn.neighbors import NearestNeighbors
+# import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
