@@ -86,22 +86,22 @@ def remove_stopwords(text):
             new_text.append(word)
     return ' '.join(new_text)
 
-def ngrams(string, n=3):
-    string = fix_text(string) # fix text
-    string = string.encode("ascii", errors="ignore").decode() #remove non ascii chars
-    string = string.lower()
-    chars_to_remove = [")","(",".","|","[","]","{","}","'"]
-    rx = '[' + re.escape(''.join(chars_to_remove)) + ']'
-    string = re.sub(rx, '', string)
-    string = string.replace('&', 'and')
-    string = string.replace(',', ' ')
-    string = string.replace('-', ' ')
-    string = string.title() # normalise case - capital at start of each word
-    string = re.sub(' +',' ',string).strip() # get rid of multiple spaces and replace with a single
-    string = ' '+ string +' ' # pad names for ngrams...
-    string = re.sub(r'[,-./]|\sBD',r'', string)
-    ngrams = zip(*[string[i:] for i in range(n)])
-    return [''.join(ngram) for ngram in ngrams]
+# def ngrams(string, n=3):
+#     string = fix_text(string) # fix text
+#     string = string.encode("ascii", errors="ignore").decode() #remove non ascii chars
+#     string = string.lower()
+#     chars_to_remove = [")","(",".","|","[","]","{","}","'"]
+#     rx = '[' + re.escape(''.join(chars_to_remove)) + ']'
+#     string = re.sub(rx, '', string)
+#     string = string.replace('&', 'and')
+#     string = string.replace(',', ' ')
+#     string = string.replace('-', ' ')
+#     string = string.title() # normalise case - capital at start of each word
+#     string = re.sub(' +',' ',string).strip() # get rid of multiple spaces and replace with a single
+#     string = ' '+ string +' ' # pad names for ngrams...
+#     string = re.sub(r'[,-./]|\sBD',r'', string)
+#     ngrams = zip(*[string[i:] for i in range(n)])
+#     return [''.join(ngram) for ngram in ngrams]
 
 
 def recommend3(skills, df_new):
@@ -326,24 +326,24 @@ else:
 
 
 
-button = """
-<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="dakshiegoeq" data-color="#FFDD00" data-emoji=""  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
-"""
+# button = """
+# <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="dakshiegoeq" data-color="#FFDD00" data-emoji=""  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
+# """
 
-components.html(button, height=70, width=220)
+# components.html(button, height=70, width=220)
 
-st.markdown(
-"""
-<style>
-iframe[width="220"] {
-position: fixed;
-bottom: 60px;
-right: 40px;
-}
-</style>
-""",
-unsafe_allow_html=True,
-)
+# st.markdown(
+# """
+# <style>
+# iframe[width="220"] {
+# position: fixed;
+# bottom: 60px;
+# right: 40px;
+# }
+# </style>
+# """,
+# unsafe_allow_html=True,
+# )
 
 # st.write('Your skills are: ', new_data)
     
