@@ -36,7 +36,7 @@ def pdf_reader(file):
                                       caching=True,
                                       check_extractable=True):
             page_interpreter.process_page(page)
-            print(page)
+            # print(page)
         text = fake_file_handle.getvalue()
 
     # close open handles
@@ -303,7 +303,7 @@ if uploaded_file is not None:
         # resume_text = pdf_reader(save_path)
 
     
-        print(resume_text)
+        # print(resume_text)
         # resume_text = [resume_text]
         st.markdown("<br><br>", unsafe_allow_html=True)
         try:

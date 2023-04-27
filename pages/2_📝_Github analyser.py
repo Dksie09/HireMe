@@ -5,8 +5,9 @@ import requests
 import os
 import base64
 from pyresparser import ResumeParser
+from secret import TOKEN_ID
 
-headers = {"Authorization": "Token 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"}
+headers = {"Authorization": f"Token {TOKEN_ID}"}
 
 #functions
 def get_pdf_files(directory):
@@ -54,7 +55,7 @@ if st.button("Get Github Info"):
         
         # Display skills
         st.write("Skills found in the resume:", resume_skills)
-        os.remove(last_resume)
+        # os.remove(last_resume)
     else:
         st.write("No PDF files found in uploaded_resume folder.")
 
@@ -107,3 +108,5 @@ if st.button("Get Github Info"):
                         st.warning(skill)
         else:
             st.write(f"Failed to retrieve repositories. Status code: {response.status_code}")
+
+        os.remove(last_resume)
